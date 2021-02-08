@@ -1,5 +1,6 @@
 package com.treggo.grocericaApi.responses;
 
+import com.treggo.grocericaApi.enums.RegistrationType;
 import com.treggo.grocericaApi.enums.userType;
 
 public class LoginResponse {
@@ -10,6 +11,7 @@ public class LoginResponse {
 	String fullName;
 	String email;
 	userType userType;
+	RegistrationType registrationType;
 	String mobile;
 	String dob;
 
@@ -19,7 +21,8 @@ public class LoginResponse {
 	}
 
 	public LoginResponse(Long userId, String token, String message, String fullName, String email,
-			com.treggo.grocericaApi.enums.userType userType, String mobile, String dob) {
+			com.treggo.grocericaApi.enums.userType userType, RegistrationType registrationType, String mobile,
+			String dob) {
 		super();
 		this.userId = userId;
 		this.token = token;
@@ -27,6 +30,7 @@ public class LoginResponse {
 		this.fullName = fullName;
 		this.email = email;
 		this.userType = userType;
+		this.registrationType = registrationType;
 		this.mobile = mobile;
 		this.dob = dob;
 	}
@@ -93,6 +97,14 @@ public class LoginResponse {
 
 	public void setDob(String dob) {
 		this.dob = dob;
+	}
+
+	public RegistrationType getRegistrationType() {
+		return registrationType;
+	}
+
+	public void setRegistrationType(RegistrationType registrationType) {
+		this.registrationType = registrationType;
 	}
 
 }

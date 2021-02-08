@@ -58,6 +58,9 @@ public class Product {
 	private LocalDate created_on;
 
 	@Column
+	private String categoryName;
+
+	@Column
 	private boolean isAvailable;
 
 	public Product() {
@@ -67,7 +70,7 @@ public class Product {
 
 	public Product(Long productId, String productName, String brand, String productDescription, Category category,
 			Long vendorId, ImgMaster productImage, int oldPrice, int newPrice, LocalDate created_on,
-			boolean isAvailable) {
+			String categoryName, boolean isAvailable) {
 		super();
 		this.productId = productId;
 		this.productName = productName;
@@ -79,7 +82,16 @@ public class Product {
 		this.oldPrice = oldPrice;
 		this.newPrice = newPrice;
 		this.created_on = created_on;
+		this.categoryName = categoryName;
 		this.isAvailable = isAvailable;
+	}
+
+	public String getCategoryName() {
+		return categoryName;
+	}
+
+	public void setCategoryName(String categoryName) {
+		this.categoryName = categoryName;
 	}
 
 	public Category getCategory() {

@@ -50,7 +50,9 @@ public class ProductService {
 		if(req.getProductId() != null) {
 			Product pr = repo.findByProductId(req.getProductId());
 			pr.setBrand(req.getBrand());
-			pr.setCategory(catRepo.findByCategoryId(req.getCategoryId()));
+			Category category = catRepo.findByCategoryId(req.getCategoryId());
+			pr.setCategory(category);
+			pr.setCategoryName(category.getCategoryName());
 			pr.setNewPrice(req.getNewPrice());
 			pr.setOldPrice(req.getOldPrice());
 			pr.setProductDescription(req.getProductDescription());

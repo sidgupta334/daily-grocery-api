@@ -15,6 +15,7 @@ import com.treggo.grocericaApi.entities.Product;
 import com.treggo.grocericaApi.entities.Session;
 import com.treggo.grocericaApi.entities.Users;
 import com.treggo.grocericaApi.entities.Vendor;
+import com.treggo.grocericaApi.enums.RegistrationType;
 import com.treggo.grocericaApi.enums.userType;
 import com.treggo.grocericaApi.repositories.CouponRepository;
 import com.treggo.grocericaApi.repositories.ProductRepository;
@@ -24,6 +25,7 @@ import com.treggo.grocericaApi.requests.LoginDTO;
 import com.treggo.grocericaApi.requests.OtpValidationDTO;
 import com.treggo.grocericaApi.requests.RegisterOTPValidation;
 import com.treggo.grocericaApi.requests.SMSModel;
+import com.treggo.grocericaApi.requests.SocialLoginDTO;
 import com.treggo.grocericaApi.requests.UpdateUserDTO;
 import com.treggo.grocericaApi.requests.UserDTO;
 import com.treggo.grocericaApi.requests.updatePasswordDTO;
@@ -57,22 +59,46 @@ public class UserServices {
 
 	@Autowired
 	private SmsService smsService;
-	
+
 	@Autowired
 	private VendorService vendorService;
-	
+
 	@Autowired
 	private ProductRepository pRepo;
-	
+
 	@Autowired
 	private CouponRepository cRepo;
 
 	Logger logger = LoggerFactory.getLogger(UserServices.class);
 
-	// Create a new user in the system
+	// Create a new SOCIAL user in the system
+	public Users createNewSocialUser(SocialLoginDTO dto) {
+		Users user = new Users();
+		user.setActive(true);
+		user.setCreated_on(LocalDate.now());
+		user.setDob("NA");
+		user.setEmail(dto.getEmail());
+		user.setFullName(dto.getFullName());
+		user.setGender("NA");
+		user.setGoogleId(dto.getUserId());
+		user.setMobile("NA");
+		user.setPassword("NA");
+		user.setRegistrationType(RegistrationType.SOCIAL);
+		user.setUserType(userType.USER);
+
+		try {
+			userRepo.save(user);
+			return user;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	// Create a new NORMAL user in the system
 	public UserResponse createNewUser(UserDTO req) {
 
 		UserResponse res = new UserResponse();
+		res.setRegistrationType(RegistrationType.NORMAL);
 		if (req.getFullName() == null) {
 			res.setValid(false);
 			res.setMessage("Fullname is required");
@@ -114,6 +140,7 @@ public class UserServices {
 			}
 
 			userToSave.setPassword(pwd.encrypt(req.getPassword()));
+			userToSave.setRegistrationType(RegistrationType.NORMAL);
 			if (req.getGender().equalsIgnoreCase("female")) {
 				userToSave.setGender("female");
 			} else {
@@ -136,19 +163,19 @@ public class UserServices {
 					res.setValid(false);
 					res.setMessage("Email already exists");
 				} else {
-					
+
 					// SAVE USER TO DB
 					userRepo.save(userToSave);
-							
+
 					// Create Vendor User:
-					if(userToSave.getUserType().equals(userType.VENDOR)) {
+					if (userToSave.getUserType().equals(userType.VENDOR)) {
 						Vendor vendor = new Vendor();
 						vendor.setUser(userToSave);
 						vendor.setVendorName(userToSave.getFullName());
 						vendor.setCreated_on(LocalDate.now());
 						vendorService.saveVendor(vendor);
 					}
-					
+
 					Address address = new Address();
 					BeanUtils.copyProperties(req, address);
 					if (req.getCountry() == null) {
@@ -161,7 +188,8 @@ public class UserServices {
 
 					// Send mail to user:
 					boolean result = false;
-					if (req.getUserType().equalsIgnoreCase("admin") || req.getUserType().equalsIgnoreCase("vendor") || req.getUserType().equalsIgnoreCase("delivery")) {
+					if (req.getUserType().equalsIgnoreCase("admin") || req.getUserType().equalsIgnoreCase("vendor")
+							|| req.getUserType().equalsIgnoreCase("delivery")) {
 						result = true;
 					} else {
 						String text = smsService.forgetPassOTPMessage(otp);
@@ -294,7 +322,7 @@ public class UserServices {
 		List<Users> users = userRepo.findByIsActive(true);
 		return _removePassword(users);
 	}
-	
+
 	public List<Users> getVendorUsers() {
 		List<Users> users = userRepo.findByUserType(userType.VENDOR);
 		return _removePassword(users);
@@ -331,10 +359,86 @@ public class UserServices {
 		return result;
 	}
 
+	// Login as SOCIAL user
+	public LoginResponse socialLoginUser(SocialLoginDTO dto) {
+
+		// Validate User DTO
+		if (dto.getEmail() == null || dto.getUserId() == null || dto.getFullName() == null) {
+			return null;
+		}
+
+		// Check if user already exists
+		Users user = userRepo.findByEmail(dto.getEmail());
+
+		// If user not exists, create one with SOCIAL type
+		if (user == null) {
+			Users newUser = this.createNewSocialUser(dto);
+			if (newUser == null) {
+				return null;
+			} else {
+				return this.generateUserSession(newUser, "PHONE_REQUIRED");
+			}
+		}
+		// If user exists, verify the user and then create session token
+		else {
+			// If user type has already googleId, then verify it. If not, then create googleId
+			if (user.getGoogleId() == null) {
+				user.setGoogleId(dto.getUserId());
+				try {
+					userRepo.save(user);
+					return this.generateUserSession(user, null);
+				} catch (Exception e) {
+					logger.error("Failed to save user for google ID: " + e);
+					return null;
+				}
+			} else {
+				if (dto.getUserId().equals(user.getGoogleId())) {
+					if(user.getMobile().equals("NA")) {
+						return this.generateUserSession(user, "PHONE_REQUIRED");
+					}
+					return this.generateUserSession(user, null);
+				} else {
+					logger.error("Google ID doesn't match, invalid google login");
+					return null;
+				}
+			}
+		}
+	}
+	
+	public boolean updatePhoneSocialUser(Users user, String phone) {
+		try {
+			if(!user.getRegistrationType().equals(RegistrationType.SOCIAL)) {
+				logger.error("No user found as SOCIAL with userID: " + user.getUserId());
+				return false;
+			}
+			
+			if(phone == null) {
+				logger.error("Invalid phone number: " + phone + " for userID: " + user.getUserId());
+				return false;
+			}
+			if(user.getMobile().equals("NA")) {
+				user.setMobile(phone);
+				userRepo.save(user);
+				return true;
+			} else {
+				logger.warn("User already has valid phone number for userID: " + user.getUserId());
+				return true;
+			}
+		} catch(Exception e) {
+			logger.error("Error while communicating to DB: " + e);
+			return false;
+		}
+	}
+
+	// Login as NORMAL user
 	public LoginResponse loginUser(LoginDTO req) {
 		try {
 			Users user = userRepo.findByEmail(req.getEmail());
 			if (user == null) {
+				return null;
+			}
+
+			if (user.getRegistrationType().equals((RegistrationType.SOCIAL))) {
 				return null;
 			}
 
@@ -349,12 +453,13 @@ public class UserServices {
 					return r;
 				}
 
-				Session checkSession = sessionRepo.findByUserIdAndUserType(user.getUserId(), user.getUserType().toString());
+				Session checkSession = sessionRepo.findByUserIdAndUserType(user.getUserId(),
+						user.getUserType().toString());
 				if (checkSession != null) {
 					sessionRepo.deleteSession(checkSession.getUserId(), checkSession.getUserType());
 				}
 
-				return this.generateUserSession(user);
+				return this.generateUserSession(user, null);
 
 			} else {
 				return null;
@@ -365,7 +470,7 @@ public class UserServices {
 			return null;
 		}
 	}
-	
+
 	public LoginResponse loginVendorUser(LoginDTO req) {
 		try {
 			Users user = userRepo.findByEmail(req.getEmail());
@@ -384,12 +489,13 @@ public class UserServices {
 					return r;
 				}
 
-				Session checkSession = sessionRepo.findByUserIdAndUserType(user.getUserId(), user.getUserType().toString());
+				Session checkSession = sessionRepo.findByUserIdAndUserType(user.getUserId(),
+						user.getUserType().toString());
 				if (checkSession != null) {
 					sessionRepo.deleteSession(checkSession.getUserId(), checkSession.getUserType());
 				}
 
-				return this.generateUserSession(user);
+				return this.generateUserSession(user, null);
 
 			} else {
 				return null;
@@ -458,7 +564,7 @@ public class UserServices {
 				pRepo.delete(product);
 			}
 			List<Coupon> couponsToDelete = cRepo.findByVendorId(userId);
-			for(Coupon coupon : couponsToDelete) {
+			for (Coupon coupon : couponsToDelete) {
 				cRepo.delete(coupon);
 			}
 			userRepo.delete(user);
@@ -533,12 +639,12 @@ public class UserServices {
 		return users;
 	}
 
-	private LoginResponse generateUserSession(Users user) {
+	private LoginResponse generateUserSession(Users user, String message) {
 
 		// Check if already session exists
 		Session checkSession = sessionRepo.findByUserIdAndUserType(user.getUserId(), user.getUserType().toString());
 		if (checkSession != null) {
-			sessionRepo.deleteSession(checkSession.getUserId(),checkSession.getUserType());
+			sessionRepo.deleteSession(checkSession.getUserId(), checkSession.getUserType());
 		}
 
 		Session session = new Session();
@@ -557,11 +663,17 @@ public class UserServices {
 		resp.setDob(user.getDob());
 		resp.setEmail(user.getEmail());
 		resp.setFullName(user.getFullName());
-		resp.setMessage("Login Success");
+		if (message == null) {
+			resp.setMessage("Login Success");
+		} else {
+			resp.setMessage(message);
+
+		}
 		resp.setMobile(user.getMobile());
 		resp.setToken(session.getToken());
 		resp.setUserId(user.getUserId());
 		resp.setUserType(user.getUserType());
+		resp.setRegistrationType(user.getRegistrationType());
 		return resp;
 	}
 

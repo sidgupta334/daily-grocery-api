@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 import org.springframework.stereotype.Component;
 
+import com.treggo.grocericaApi.enums.RegistrationType;
 import com.treggo.grocericaApi.enums.userType;
 
 @Component
@@ -14,6 +15,7 @@ public class UserResponse {
 	private String gender;
 	private String email;
 	private userType userType;
+	private RegistrationType registrationType;
 	private String mobile;
 	private String dob;
 	private String addressTitle;
@@ -35,15 +37,17 @@ public class UserResponse {
 	}
 
 	public UserResponse(Long userId, String fullName, String gender, String email,
-			com.treggo.grocericaApi.enums.userType userType, String mobile, String dob, String addressTitle,
-			String address1, String address2, String city, String pincode, String state, String country,
-			LocalDate created_on, boolean isValid, String message, Long vendorId, String vendorName) {
+			com.treggo.grocericaApi.enums.userType userType, RegistrationType registrationType, String mobile,
+			String dob, String addressTitle, String address1, String address2, String city, String pincode,
+			String state, String country, LocalDate created_on, boolean isValid, String message, Long vendorId,
+			String vendorName) {
 		super();
 		this.userId = userId;
 		this.fullName = fullName;
 		this.gender = gender;
 		this.email = email;
 		this.userType = userType;
+		this.registrationType = registrationType;
 		this.mobile = mobile;
 		this.dob = dob;
 		this.addressTitle = addressTitle;
@@ -210,6 +214,14 @@ public class UserResponse {
 
 	public void setVendorName(String vendorName) {
 		this.vendorName = vendorName;
+	}
+
+	public RegistrationType getRegistrationType() {
+		return registrationType;
+	}
+
+	public void setRegistrationType(RegistrationType registrationType) {
+		this.registrationType = registrationType;
 	}
 
 }

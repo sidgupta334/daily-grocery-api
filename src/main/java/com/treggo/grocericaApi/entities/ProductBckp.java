@@ -38,6 +38,7 @@ public class ProductBckp {
 
 	@Column
 	private String vendor;
+	
 
 	@Column(nullable = false)
 	private LocalDate created_on;

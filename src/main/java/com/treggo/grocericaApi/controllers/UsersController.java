@@ -18,6 +18,7 @@ import com.treggo.grocericaApi.entities.Users;
 import com.treggo.grocericaApi.requests.LoginDTO;
 import com.treggo.grocericaApi.requests.OtpValidationDTO;
 import com.treggo.grocericaApi.requests.RegisterOTPValidation;
+import com.treggo.grocericaApi.requests.SocialLoginDTO;
 import com.treggo.grocericaApi.requests.UpdateUserDTO;
 import com.treggo.grocericaApi.requests.UserDTO;
 import com.treggo.grocericaApi.requests.updatePasswordDTO;
@@ -39,7 +40,7 @@ public class UsersController {
 
 	@Autowired
 	TokenGenerator tokenService;
-	
+
 	Logger logger = LoggerFactory.getLogger(UsersController.class);
 
 	@ApiOperation(value = "Creates a new user of the system")
@@ -51,7 +52,40 @@ public class UsersController {
 		} else {
 			return ResponseEntity.status(500).body(res);
 		}
+	}
 
+	@ApiOperation(value = "Login as SOCIAL user")
+	@PostMapping("/login/social")
+	public ResponseEntity<?> loginAsSocialUser(@RequestBody SocialLoginDTO req) {
+		LoginResponse res = userService.socialLoginUser(req);
+		if (res == null) {
+			logger.warn("Unauthorized access request for user: " + req.getEmail());
+			return ResponseEntity.status(401).body(new GeneralResponse("Login failed"));
+		} else if (res.getMessage().equals("PHONE_REQUIRED")) {
+			logger.warn("Phone number is pending for user: " + req.getEmail());
+			return ResponseEntity.status(500).body(res);
+		} else {
+			logger.info("User Logged in successfully: " + res.getUserId() + " : " + res.getFullName());
+			return ResponseEntity.ok(res);
+		}
+	}
+
+	@ApiOperation(value = "Login as SOCIAL user")
+	@GetMapping("/social/phone/update/{phone}")
+	public ResponseEntity<?> updateSocialPhone(@PathVariable("phone") String phone,
+			@RequestHeader("token") String token) {
+
+		// Validate token
+		Users user = tokenService.validateToken(token);
+		if (user == null) {
+			return ResponseEntity.status(401).body(new GeneralResponse("Unauthorized"));
+		}
+		boolean result = userService.updatePhoneSocialUser(user, phone);
+		if(result) {
+			return ResponseEntity.ok(new GeneralResponse("success"));
+		} else {
+			return ResponseEntity.status(500).body(new GeneralResponse("failed"));
+		}
 	}
 
 	@ApiOperation(value = "Login as an existing user")
@@ -70,7 +104,7 @@ public class UsersController {
 			return ResponseEntity.ok(login);
 		}
 	}
-	
+
 	@ApiOperation(value = "Login as an existing VENDOR user")
 	@PostMapping("/vendor/login")
 	public ResponseEntity<?> loginVendorUser(@RequestBody LoginDTO req) {
@@ -100,8 +134,7 @@ public class UsersController {
 
 		return ResponseEntity.ok(userService.getAllUsers());
 	}
-	
-	
+
 	@ApiOperation(value = "Get all the VENDOR users")
 	@GetMapping("/vendors/all")
 	public ResponseEntity<?> getAllVendors(@RequestHeader("token") String token) {
@@ -114,7 +147,6 @@ public class UsersController {
 
 		return ResponseEntity.ok(userService.getVendorUsers());
 	}
-	
 
 	@ApiOperation(value = "Get all the Active users")
 	@GetMapping("/allUsers")
@@ -150,9 +182,9 @@ public class UsersController {
 		if (user == null) {
 			return ResponseEntity.status(401).body(new GeneralResponse("Unauthorized"));
 		}
-		
+
 		Users res = userService.updateUser(dto);
-		if(res == null) {
+		if (res == null) {
 			return ResponseEntity.status(401).body(new GeneralResponse("Failed to update user"));
 		} else {
 			res.setPassword(null);

@@ -10,6 +10,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
+import com.treggo.grocericaApi.enums.RegistrationType;
 import com.treggo.grocericaApi.enums.userType;
 
 @Entity
@@ -30,6 +31,12 @@ public class Users {
 
 	@Enumerated(EnumType.STRING)
 	private userType userType;
+
+	@Enumerated(EnumType.STRING)
+	private RegistrationType registrationType;
+
+	@Column
+	private String googleId;
 
 	@Column(nullable = false)
 	private String mobile;
@@ -55,14 +62,16 @@ public class Users {
 	}
 
 	public Users(Long userId, String fullName, String gender, String email,
-			com.treggo.grocericaApi.enums.userType userType, String mobile, String dob, String password,
-			boolean isActive, LocalDate created_on, Long vendorId) {
+			com.treggo.grocericaApi.enums.userType userType, RegistrationType registrationType, String googleId,
+			String mobile, String dob, String password, boolean isActive, LocalDate created_on, Long vendorId) {
 		super();
 		this.userId = userId;
 		this.fullName = fullName;
 		this.gender = gender;
 		this.email = email;
 		this.userType = userType;
+		this.registrationType = registrationType;
+		this.googleId = googleId;
 		this.mobile = mobile;
 		this.dob = dob;
 		this.password = password;
@@ -157,6 +166,22 @@ public class Users {
 
 	public void setVendorId(Long vendorId) {
 		this.vendorId = vendorId;
+	}
+
+	public RegistrationType getRegistrationType() {
+		return registrationType;
+	}
+
+	public void setRegistrationType(RegistrationType registrationType) {
+		this.registrationType = registrationType;
+	}
+
+	public String getGoogleId() {
+		return googleId;
+	}
+
+	public void setGoogleId(String googleId) {
+		this.googleId = googleId;
 	}
 
 }
